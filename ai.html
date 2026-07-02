@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science World AI Assistant</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        
+        /* Main Text Chat Dashboard Container */
+        .chat-container { width: 100%; max-width: 450px; height: 100vh; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border-radius: 0px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .chat-header { background: #0f172a; color: white; padding: 18px; text-align: center; font-size: 1.3rem; font-weight: bold; letter-spacing: 0.5px; }
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; background: #f8fafc; }
+        
+        .message-container { display: flex; flex-direction: column; max-width: 85%; }
+        .user-container { align-self: flex-end; }
+        .ai-container { align-self: flex-start; }
+
+        .message { padding: 14px 18px; border-radius: 12px; word-wrap: break-word; line-height: 1.6; font-size: 0.95rem; }
+        .user-msg { background: #2563eb; color: white; border-bottom-right-radius: 2px; }
+        .ai-msg { background: #e2e8f0; color: #1e293b; border-bottom-left-radius: 2px; }
+        
+        .voice-btn { background: none; border: none; color: #2563eb; font-size: 0.85rem; cursor: pointer; font-weight: 600; margin-top: 4px; align-self: flex-start; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; }
+        .voice-btn:hover { background: #cbd5e1; }
+
+        /* Typography & Tables clean configurations inside chat output nodes */
+        .ai-msg table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; background: #ffffff; border-radius: 6px; overflow: hidden; }
+        .ai-msg th, .ai-msg td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+        .ai-msg th { background-color: #0f172a; color: #ffffff; font-weight: 600; }
+        .ai-msg tr:nth-child(even) { background-color: #f1f5f9; }
+        .ai-msg p { margin-bottom: 10px; }
+        .ai-msg h1, .ai-msg h2, .ai-msg h3 { margin-top: 12px; margin-bottom: 6px; color: #0f172a; font-weight: 700; }
+        .ai-msg ul, .ai-msg ol { margin-left: 20px; margin-bottom: 10px; }
+        .ai-msg li { margin-bottom: 4px; }
+
+        .typing-msg { background: #e2e8f0; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 2px; display: flex; align-items: center; gap: 4px; padding: 14px 20px; }
+        .dot { width: 6px; height: 6px; background: #64748b; border-radius: 50%; animation: blink 1.4s infinite both; }
+        .dot:nth-child(2) { animation-delay: .2s; }
+        .dot:nth-child(3) { animation-delay: .4s; }
+        @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
+
+        .chat-input-area { display: flex; border-top: 1px solid #e2e8f0; padding: 12px; background: #fff; gap: 8px; align-items: center; }
+        .chat-input-area input { flex: 1; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 1rem; transition: border 0.2s; }
+        
+        .control-btn { border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+        .mic-btn { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-size: 1.2rem; padding: 10px 14px; }
+        .send-btn { background: #2563eb; color: white; padding: 12px 20px; }
+
+        /* 🚨 VOICE CALL OVERLAY STYLING */
+        .voice-call-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            z-index: 10; display: none; flex-direction: column; justify-content: space-between;
+            padding: 40px 30px; text-align: center; color: white;
+        }
+        .voice-header .voice-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 6px; }
+        .voice-header .voice-status { font-size: 0.95rem; color: #38bdf8; font-weight: 500; }
+        
+        .voice-avatar-area { display: flex; justify-content: center; align-items: center; flex: 1; }
+        
+        /* 🎵 AUDIO VOICE WAVE LAYOUT */
+        .voice-wave { display: flex; align-items: center; justify-content: center; gap: 8px; height: 120px; }
+        .voice-wave .bar { width: 8px; height: 20px; background: #475569; border-radius: 4px; transition: all 0.3s ease; }
+        
+        .pulse-listening .bar { background: #34d399; animation: waveAnimation 1s infinite ease-in-out; }
+        .pulse-speaking .bar { background: #38bdf8; animation: waveAnimation 0.6s infinite ease-in-out; }
+        
+        .voice-wave .bar:nth-child(1) { animation-delay: 0.1s; }
+        .voice-wave .bar:nth-child(2) { animation-delay: 0.3s; }
+        .voice-wave .bar:nth-child(3) { animation-delay: 0.5s; }
+        .voice-wave .bar:nth-child(4) { animation-delay: 0.2s; }
+        .voice-wave .bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes waveAnimation {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(3.5); }
+        }
+
+        .voice-caption { background: rgba(255,255,255,0.06); padding: 18px; border-radius: 12px; font-size: 0.95rem; color: #cbd5e1; min-height: 80px; max-height: 110px; overflow-y: auto; font-style: italic; margin-bottom: 20px; }
+        .end-call-btn { width: 65px; height: 65px; background: #dc2626; border-radius: 50%; border: none; cursor: pointer; color: white; font-size: 1.5rem; display: flex; justify-content: center; align-items: center; margin: 0 auto; transition: transform 0.1s; }
+        .end-call-btn:active { transform: scale(0.9); }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="voice-call-overlay" id="voiceOverlay">
+        <div class="voice-header">
+            <div class="voice-title">🔬 Science World Voice Engine</div>
+            <div class="voice-status" id="voiceStatus">Connecting...</div>
+        </div>
+        <div class="voice-avatar-area">
+            <div class="voice-wave" id="voiceSphere">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            </div>
+        </div>
+        <div class="voice-caption" id="voiceCaption">Listening...</div>
+        <button class="end-call-btn" onclick="closeVoiceMode()" title="Cut Call">❌</button>
+    </div>
+
+    <div class="chat-header">🔬 Science World AI</div>
+    <div class="chat-box" id="chatBox">
+        <div class="message-container ai-container">
+            <div class="message ai-msg">Namaste! Science World AI me aapka swagat hai. Koi bhi Physics, Chemistry ka tough sawal ya numerical poochhein, mai use step-by-step solve kar dunga!</div>
+            <button class="voice-btn" onclick="speakText(this.previousElementSibling.innerText)">🔊 Listen</button>
+        </div>
+    </div>
+    <div class="chat-input-area">
+        <button class="control-btn mic-btn" id="micBtn" onclick="openVoiceMode()" title="Voice Assistant Mode">🎤</button>
+        <input type="text" id="userInput" placeholder="Apna sawal likhein..." onkeypress="handleKeyPress(event)">
+        <button class="control-btn send-btn" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const voiceOverlay = document.getElementById('voiceOverlay');
+    const voiceStatus = document.getElementById('voiceStatus');
+    const voiceSphere = document.getElementById('voiceSphere');
+    const voiceCaption = document.getElementById('voiceCaption');
+
+    let recognition;
+    let voiceModeActive = false;
+
+    function getMaleVoiceProfile() {
+        const voices = window.speechSynthesis.getVoices();
+        let male = voices.find(v => v.lang.includes('HI') && (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('google')));
+        if (!male) male = voices.find(v => v.lang.includes('IN') && v.name.toLowerCase().includes('male'));
+        if (!male) male = voices.find(v => v.name.toLowerCase().includes('male'));
+        return male || voices[0];
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'hi-IN';
+
+        recognition.onstart = () => {
+            if (!voiceModeActive) return;
+            voiceStatus.innerText = "Listening to you...";
+            voiceStatus.style.color = "#34d399";
+            voiceSphere.className = "voice-wave pulse-listening";
+        };
+
+        recognition.onerror = (e) => {
+            console.error(e);
+            if (voiceModeActive) recognition.start();
+        };
+
+        recognition.onend = () => {
+            if (voiceModeActive && !window.speechSynthesis.speaking) {
+                recognition.start();
+            }
+        };
+
+        recognition.onresult = async (event) => {
+            const transcriptValue = event.results[0][0].transcript;
+            voiceCaption.innerText = "Aapne Pucha: " + transcriptValue;
+            appendUserMessage(transcriptValue);
+            await fetchVoiceAIResponse(transcriptValue);
+        };
+    }
+
+    function openVoiceMode() {
+        if (!recognition) {
+            alert("Aapka browser ya device voice engine support nahi karta.");
+            return;
+        }
+        window.speechSynthesis.cancel();
+        voiceModeActive = true;
+        voiceOverlay.style.display = "flex";
+        voiceCaption.innerText = "Connecting to RK Physics voice engine...";
+        speakVoiceOutput("Haan ji! Main Science World AI voice mode me hoon. Apna sawal boliye, mai sun rha hoon.");
+    }
+
+    function closeVoiceMode() {
+        voiceModeActive = false;
+        window.speechSynthesis.cancel();
+        if (recognition) recognition.stop();
+        voiceOverlay.style.display = "none";
+    }
+
+    function speakVoiceOutput(text) {
+        window.speechSynthesis.cancel();
+        const readableCleanText = text.replace(/[*#|\[\]\-–—]/g, '').replace(/\\times/g, ' multiplied by ').trim();
+        const utterance = new SpeechSynthesisUtterance(readableCleanText);
+        
+        const maleVoice = getMaleVoiceProfile();
+        if (maleVoice) utterance.voice = maleVoice;
+
+        utterance.onstart = () => {
+            if (!voiceModeActive) return;
+            voiceStatus.innerText = "Science World AI Speaking...";
+            voiceStatus.style.color = "#60a5fa";
+            voiceSphere.className = "voice-wave pulse-speaking";
+            voiceCaption.innerText = "AI: " + text;
+        };
+
+        utterance.onend = () => {
+            if (voiceModeActive) {
+                voiceSphere.className = "voice-wave";
+                recognition.start();
+            }
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function appendUserMessage(text) {
+        const container = document.createElement('div');
+        container.className = 'message-container user-container';
+        container.innerHTML = `<div class="message user-msg">${text}</div>`;
+        chatBox.appendChild(container);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function appendTypingLoader() {
+        const loaderDiv = document.createElement('div');
+        loaderDiv.className = 'message typing-msg';
+        loaderDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+        chatBox.appendChild(loaderDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return loaderDiv;
+    }
+
+    window.speakText = function(text) {
+        window.speechSynthesis.cancel();
+        const cleanSpeech = text.replace(/[*#|\[\]\-–—]/g, '').replace(/\\times/g, ' multiplied by ');
+        const utterance = new SpeechSynthesisUtterance(cleanSpeech);
+        
+        const maleVoice = getMaleVoiceProfile();
+        if (maleVoice) utterance.voice = maleVoice;
+        
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // 🛠️ UPDATED MATH SYMBOL CONVERTER: Handles raw LaTeX tags beautifully
+    function cleanMathText(text) {
+        return text
+            .replace(/\\boxed\{(.*?)\}/g, ' [ **$1** ] ') // Formats boxed results cleanly
+            .replace(/\\frac\{(.*?)\}\{(.*?)\}/g, ' ($1/$2) ') // Formats fractions as (a/b)
+            .replace(/\\int/g, ' ∫ ') // Integral symbol
+            .replace(/\\times/g, ' × ')
+            .replace(/\\quad/g, ' ')
+            .replace(/\\div/g, ' ÷ ')
+            .replace(/\\pm/g, ' ± ')
+            .replace(/\^2/g, '²')
+            .replace(/\^3/g, '³')
+            .replace(/\^4/g, '⁴')
+            .replace(/\\text\{(.*?)\}/g, '$1')
+            .replace(/\\\[|\\\]|\\\(|\\\)/g, '')
+            .replace(/\[\s*/g, '[')
+            .replace(/\s*\]/g, ']');
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') sendMessage();
+    }
+
+    async function fetchVoiceAIResponse(userInputSpeechText) {
+        voiceStatus.innerText = "Thinking solution...";
+        voiceSphere.className = "voice-wave";
+        const textLoader = appendTypingLoader();
+
+        try {
+            const systemPrompt = "You are 'Science World AI', an expert premium AI tutor built exclusively for 'Science World' coaching institute by RK Physics. " +
+            "CRITICAL MATH RULE: Never ever output complex LaTeX mathematical structures or annotations like '\\times', '\\quad', '\\[' or '\\('. Instead, output standard easy clear plain readable text expressions using words like 'multiplied by', 'square', 'x' or '='. " +
+            "STRUCTURE RULE: Keep explanations highly concise, conversational and clear. End with a sharp direct numerical solution. " +
+            "IDENTITY RULE: If anyone asks your identity, reply you are Science World AI built by RK Physics. Reply beautifully in natural Hinglish.";
+
+            const response = await fetch("https://text.pollinations.ai/openai", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userInputSpeechText } ],
+                    model: "openai"
+                })
+            });
+
+            const rawData = await response.json();
+            let aiResponse = rawData.choices[0].message.content.trim();
+
+            const lowerResponse = aiResponse.toLowerCase();
+            if (lowerResponse.includes("chatgpt") || lowerResponse.includes("openai") || lowerResponse.includes("language model")) {
+                aiResponse = "Main Science World AI assistant hoon, jise aapke RK Physics ne design kiya hai!";
+            }
+
+            aiResponse = cleanMathText(aiResponse);
+
+            const parent = textLoader.parentNode;
+            const aiContainer = document.createElement('div');
+            aiContainer.className = 'message-container ai-container';
+            aiContainer.innerHTML = `<div class="message ai-msg">${marked.parse(aiResponse)}</div><button class="voice-btn" onclick="speakText(this.previousElementSibling.innerText)">🔊 Listen</button>`;
+            parent.replaceChild(aiContainer, textLoader);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            if (voiceModeActive) {
+                speakVoiceOutput(aiResponse);
+            }
+
+        } catch (error) {
+            console.error(error);
+            if (voiceModeActive) speakVoiceOutput("Connection error bhai. Please try again!");
+        }
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        appendUserMessage(text);
+        userInput.value = '';
+
+        const loadingMsg = appendTypingLoader();
+
+        try {
+            const systemPrompt = "You are 'Science World AI', an expert premium AI tutor built exclusively for 'Science World' coaching institute by RK Physics. " +
+            "CRITICAL MATH RULE: Do not use complex LaTeX strings like '\\times', '\\quad', '\\[' or '\\('. Write equations using normal accessible symbols like 'x', '*', '²'. " +
+            "STRUCTURE RULE: Explain step-by-step cleanly. At the end, put a section starting with '### 🎯 Final Answer:' followed by the final value. " +
+            "IDENTITY RULE: Reply that you are Science World AI, developed for RK Physics's students. Reply in friendly Hinglish.";
+
+            const response = await fetch("https://text.pollinations.ai/openai", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    messages: [ { role: "system", content: systemPrompt }, { role: "user", content: text } ],
+                    model: "openai"
+                })
+            });
+
+            const rawData = await response.json();
+            let aiResponse = rawData.choices[0].message.content.trim();
+
+            const lowerResponse = aiResponse.toLowerCase();
+            if (lowerResponse.includes("chatgpt") || lowerResponse.includes("openai") || lowerResponse.includes("language model")) {
+                aiResponse = "Main Science World AI assistant hoon, jise aapke RK Physics ne aapki help ke liye design kiya hai!";
+            }
+
+            aiResponse = cleanMathText(aiResponse);
+
+            const parent = loadingMsg.parentNode;
+            const aiContainer = document.createElement('div');
+            aiContainer.className = 'message-container ai-container';
+            aiContainer.innerHTML = `
+                <div class="message ai-msg">${marked.parse(aiResponse)}</div>
+                <button class="voice-btn" onclick="speakText(this.previousElementSibling.innerText)">🔊 Listen</button>
+            `;
+            
+            parent.replaceChild(aiContainer, loadingMsg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+        } catch (error) {
+            console.error(error);
+            loadingMsg.className = "message ai-msg";
+            loadingMsg.innerHTML = "Network error lag raha hai bhai.";
+        }
+    }
+
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = getMaleVoiceProfile;
+    }
+</script>
+</body>
+</html>
